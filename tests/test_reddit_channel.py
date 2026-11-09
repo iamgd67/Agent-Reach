@@ -27,7 +27,10 @@ def test_can_handle_rejects_non_reddit():
 
 
 def test_unconfigured_browser_is_prepared_without_assuming_login(monkeypatch):
+    from agent_reach.config import Config
     from agent_reach.runtime import browser, session_reuse
+
+    Config().set("session_reuse", "on")
     launch = Mock()
     monkeypatch.setattr(browser, "ensure_running", launch)
     monkeypatch.setattr(browser, "connected_contexts", lambda: [])

@@ -68,7 +68,10 @@ def test_automatic_reuse_copies_only_the_requested_site_and_reuses_cache(monkeyp
     from unittest.mock import Mock
 
     from agent_reach.backends import opencli
+    from agent_reach.config import Config
     from agent_reach.runtime import session_reuse
+
+    Config().set("session_reuse", "on")
     monkeypatch.setattr(browser, 'ensure_running', lambda: None)
     monkeypatch.setattr(browser, 'connected_contexts', lambda: ['daily', 'owned'])
     monkeypatch.setattr(browser, 'bound_context', lambda: 'owned')
@@ -106,8 +109,10 @@ def test_saved_import_survives_an_hour_without_rereading_the_source(monkeypatch,
 def test_explicit_import_can_refresh_a_saved_snapshot(monkeypatch):
     from unittest.mock import Mock
 
+    from agent_reach.config import Config
     from agent_reach.runtime import session_reuse
 
+    Config().set("session_reuse", "on")
     saved = {'source': 'daily', 'copied_cookies': 1, 'cookie_snapshot': 1, 'at': state.now()}
     state.mutate(lambda data: data.setdefault('session_reuse', {}).__setitem__('xiaohongshu', saved))
     incoming = [{'name': 'sid', 'value': 'refreshed', 'domain': '.xiaohongshu.com', 'path': '/'}]
@@ -127,7 +132,10 @@ def test_explicit_import_can_refresh_a_saved_snapshot(monkeypatch):
 
 def test_multiple_local_accounts_are_not_guessed(monkeypatch):
     from agent_reach.backends import opencli
+    from agent_reach.config import Config
     from agent_reach.runtime import session_reuse
+
+    Config().set("session_reuse", "on")
     monkeypatch.setattr(browser,'ensure_running',lambda:None)
     monkeypatch.setattr(browser,'connected_contexts',lambda:['one','two'])
     monkeypatch.setattr(opencli,'export_site_cookies',lambda *args:[{'name':'sid','value':'test','domain':'.xiaohongshu.com'}])
@@ -159,7 +167,10 @@ def test_selecting_another_source_keeps_explicit_logout_and_manual_login(monkeyp
 
 
 def test_unavailable_source_keeps_saved_destination_and_does_not_open_login(monkeypatch):
+    from agent_reach.config import Config
     from agent_reach.runtime import session_reuse
+
+    Config().set("session_reuse", "on")
     monkeypatch.setattr(browser,'ensure_running',lambda:None)
     monkeypatch.setattr(browser,'connected_contexts',lambda:[])
     monkeypatch.setattr(browser,'start',lambda *a:pytest.fail('opened a login window'))
@@ -169,7 +180,10 @@ def test_unavailable_source_keeps_saved_destination_and_does_not_open_login(monk
 
 
 def test_explicit_import_without_a_source_login_fails_and_keeps_saved_state(monkeypatch):
+    from agent_reach.config import Config
     from agent_reach.runtime import bridge, session_reuse
+
+    Config().set("session_reuse", "on")
     saved = {'source': 'daily', 'copied_cookies': 3, 'cookie_snapshot': 1, 'at': state.now()}
     state.mutate(lambda data: data.setdefault('session_reuse', {}).__setitem__('xiaohongshu', saved))
     monkeypatch.setattr(browser, 'ensure_running', lambda: None)
@@ -183,8 +197,10 @@ def test_explicit_import_without_a_source_login_fails_and_keeps_saved_state(monk
 
 
 def test_missing_bridge_is_not_recorded_as_an_empty_site_session(monkeypatch):
+    from agent_reach.config import Config
     from agent_reach.runtime import bridge, session_reuse
 
+    Config().set("session_reuse", "on")
     monkeypatch.setattr(browser, "ensure_running", lambda: None)
     monkeypatch.setattr(bridge, "status", lambda: {})
     monkeypatch.setattr(cdp, "call", lambda *a, **k: pytest.fail("changed saved session"))
@@ -199,7 +215,10 @@ def test_missing_bridge_is_not_recorded_as_an_empty_site_session(monkeypatch):
 
 
 def test_site_snapshot_expires_destination_only_cookies_and_preserves_other_sites(monkeypatch):
+    from agent_reach.config import Config
     from agent_reach.runtime import session_reuse
+
+    Config().set("session_reuse", "on")
     monkeypatch.setattr(browser,'ensure_running',lambda:None)
     monkeypatch.setattr(browser,'save_session',lambda:None)
     incoming=[{'name':'sid','value':'chosen','domain':'.xiaohongshu.com','path':'/'}]
@@ -223,7 +242,10 @@ def test_site_snapshot_expires_destination_only_cookies_and_preserves_other_site
 
 
 def test_site_import_failure_restores_previous_site_and_retains_saved_snapshot(monkeypatch):
+    from agent_reach.config import Config
     from agent_reach.runtime import session_reuse
+
+    Config().set("session_reuse", "on")
     monkeypatch.setattr(browser,'ensure_running',lambda:None)
     monkeypatch.setattr(browser,'save_session',lambda:pytest.fail('saved a failed import'))
     monkeypatch.setattr(session_reuse,'_source_cookies',lambda *a:([{'name':'new','value':'incoming','domain':'.xiaohongshu.com'}],'daily'))
@@ -254,8 +276,10 @@ def test_dispatch_worker_reuses_session_without_relocking_the_calling_thread(mon
 
 def test_dispatch_reports_missing_bridge_before_calling_the_site_backend(monkeypatch):
     from agent_reach.channels.xiaohongshu import XiaoHongShuChannel
+    from agent_reach.config import Config
     from agent_reach.runtime import bridge, dispatch, run
 
+    Config().set("session_reuse", "on")
     monkeypatch.setattr(browser, "ensure_running", lambda: None)
     monkeypatch.setattr(browser, "bound_context", lambda: "owned")
     monkeypatch.setattr(bridge, "status", lambda: {})
@@ -352,7 +376,8 @@ def test_disabled_session_reuse_never_reads_local_browsers(monkeypatch):
     export.assert_not_called()
 
 
-def test_session_reuse_stays_on_by_default(monkeypatch):
+def test_session_reuse_defaults_to_off_and_on_opts_back_in(monkeypatch):
+    """Fork default: no local-browser reads until `configure session-reuse on`."""
     from unittest.mock import Mock
 
     from agent_reach.backends import opencli
@@ -366,6 +391,12 @@ def test_session_reuse_stays_on_by_default(monkeypatch):
     export = Mock(return_value=[{'name': 'sid', 'value': 'test', 'domain': '.xiaohongshu.com',
                                  'expirationDate': 9999999999}])
     monkeypatch.setattr(opencli, 'export_site_cookies', export)
+    monkeypatch.setattr(cdp, 'call', lambda *a, **k: pytest.fail('touched the dedicated browser'))
+    assert session_reuse._source_cookies('xiaohongshu', ('xiaohongshu.com',)) == ([], 'disabled')
+    assert session_reuse.prepare('xiaohongshu') == {'source': 'disabled', 'copied_cookies': 0}
+    export.assert_not_called()
+
+    Config().set('session_reuse', 'on')
     cookies, source = session_reuse._source_cookies('xiaohongshu', ('xiaohongshu.com',))
     assert source == 'daily' and [c['name'] for c in cookies] == ['sid']
     export.assert_called_once_with('daily', 'xiaohongshu.com')
@@ -376,9 +407,11 @@ def test_copying_a_login_leaves_a_one_shot_notice_in_the_output(monkeypatch, cap
     from unittest.mock import Mock
 
     from agent_reach.backends import opencli
+    from agent_reach.config import Config
     from agent_reach.runtime import cli, session_reuse
     from agent_reach.runtime.result import envelope
 
+    Config().set("session_reuse", "on")
     monkeypatch.setattr(browser, 'ensure_running', lambda: None)
     monkeypatch.setattr(browser, 'connected_contexts', lambda: ['daily'])
     monkeypatch.setattr(browser, 'bound_context', lambda: 'owned')

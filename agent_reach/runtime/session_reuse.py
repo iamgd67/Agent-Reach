@@ -36,10 +36,10 @@ def _cookies(rows, domains) -> list:
 
 
 def _import_allowed() -> bool:
-    """False only when the user turned local-login copying off (`configure session-reuse off`)."""
+    """True only after the user opted in (`configure session-reuse on`); this fork ships copy-off by default."""
     from agent_reach.config import Config
 
-    value = str(Config(read_only=True).get("session_reuse", "on")).strip().lower()
+    value = str(Config(read_only=True).get("session_reuse", "off")).strip().lower()
     return value not in {"off", "false", "0", "no", "disabled"}
 
 
